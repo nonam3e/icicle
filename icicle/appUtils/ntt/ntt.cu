@@ -646,34 +646,27 @@ namespace ntt {
 
     const bool is_inverse = dir == NTTDir::kInverse;
 
-    #ifdef RADIX_2_DEFINED
+    const bool is_radix2_algorithm = is_choose_radix2_algorithm(logn, batch_size, config);
+    if (is_radix2_algorithm) {
       CHK_IF_RETURN(ntt::radix2_ntt(
         d_input, d_output, domain.twiddles, size, domain.max_size, batch_size, is_inverse, config.ordering, coset,
         coset_index, stream));
-    #else
-      const bool is_radix2_algorithm = is_choose_radix2_algorithm(logn, batch_size, config);
-      if (is_radix2_algorithm) {
-        CHK_IF_RETURN(ntt::radix2_ntt(
-          d_input, d_output, domain.twiddles, size, domain.max_size, batch_size, is_inverse, config.ordering, coset,
-          coset_index, stream));
-      } else {
-        const bool is_on_coset = (coset_index != 0) || coset;
-        const bool is_fast_twiddles_enabled = (domain.fast_external_twiddles != nullptr) && !is_on_coset;
-        S* twiddles = is_fast_twiddles_enabled
-                        ? (is_inverse ? domain.fast_external_twiddles_inv : domain.fast_external_twiddles)
-                        : domain.twiddles;
-        S* internal_twiddles = is_fast_twiddles_enabled
-                                ? (is_inverse ? domain.fast_internal_twiddles_inv : domain.fast_internal_twiddles)
-                                : domain.internal_twiddles;
-        S* basic_twiddles = is_fast_twiddles_enabled
-                              ? (is_inverse ? domain.fast_basic_twiddles_inv : domain.fast_basic_twiddles)
-                              : domain.basic_twiddles;
-
-        CHK_IF_RETURN(ntt::mixed_radix_ntt(
-          d_input, d_output, twiddles, internal_twiddles, basic_twiddles, size, domain.max_log_size, batch_size,
-          config.columns_batch, is_inverse, is_fast_twiddles_enabled, config.ordering, coset, coset_index, stream));
-      }
-    #endif
+    } else {
+      const bool is_on_coset = (coset_index != 0) || coset;
+      const bool is_fast_twiddles_enabled = (domain.fast_external_twiddles != nullptr) && !is_on_coset;
+      S* twiddles = is_fast_twiddles_enabled
+                      ? (is_inverse ? domain.fast_external_twiddles_inv : domain.fast_external_twiddles)
+                      : domain.twiddles;
+      S* internal_twiddles = is_fast_twiddles_enabled
+                              ? (is_inverse ? domain.fast_internal_twiddles_inv : domain.fast_internal_twiddles)
+                              : domain.internal_twiddles;
+      S* basic_twiddles = is_fast_twiddles_enabled
+                            ? (is_inverse ? domain.fast_basic_twiddles_inv : domain.fast_basic_twiddles)
+                            : domain.basic_twiddles;
+     CHK_IF_RETURN(ntt::mixed_radix_ntt(
+        d_input, d_output, twiddles, internal_twiddles, basic_twiddles, size, domain.max_log_size, batch_size,
+        config.columns_batch, is_inverse, is_fast_twiddles_enabled, config.ordering, coset, coset_index, stream));
+    }
 
     if (!are_outputs_on_device)
       CHK_IF_RETURN(cudaMemcpyAsync(output, d_output, input_size_bytes, cudaMemcpyDeviceToHost, stream));
@@ -747,6 +740,7 @@ namespace ntt {
     NTTConfig<curve_config::scalar_t>& config,
     curve_config::projective_t* output)
   {
+    config.ntt_algorithm = NttAlgorithm::Radix2;
     return NTT<curve_config::scalar_t, curve_config::projective_t>(input, size, dir, config, output);
   }
 
