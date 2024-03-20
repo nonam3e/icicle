@@ -103,7 +103,7 @@ func TestECNtt(t *testing.T) {
 	initDomain(largestTestSize, cfg)
 	points := GenerateProjectivePoints(1 << largestTestSize)
 
-	for _, size := range []int{4, largestTestSize} {
+	for _, size := range []int{4, 5, 6, 7, 8} {
 		for _, v := range [4]core.Ordering{core.KNN, core.KNR, core.KRN, core.KRR} {
 			testSize := 1 << size
 
@@ -113,7 +113,7 @@ func TestECNtt(t *testing.T) {
 
 			output := make(core.HostSlice[Projective], testSize)
 			e := ECNtt(pointsCopy, core.KForward, &cfg, output)
-			assert.Equal(t, e, cr.CudaSuccess, "ECNtt failed")
+			assert.Equal(t, core.IcicleErrorCode(0), e.IcicleErrorCode, "ECNtt failed")
 		}
 	}
 }
